@@ -1,9 +1,11 @@
 from django.shortcuts import render
+from django.db.models import Prefetch
 from rest_framework.views import APIView
-from .models import AppUser, AppPost, AppComment
 from rest_framework.response import Response
-from .serializers import AppUserSerializer, AppPostSerializer, AppCommentSerializer
 from rest_framework import status
+
+from .models import AppUser, AppPost, AppComment
+from .serializers import AppUserSerializer, AppPostSerializer, AppCommentSerializer
 
 
 # Create your views here.
@@ -64,3 +66,45 @@ class UserDetailV1(APIView):
         }
 
         return Response(response_data)
+    
+
+class UserDetailV2(APIView):
+
+    def get(self, request, pk, format=None):
+        user = AppUser.objects.filter(pk=pk).only('id', 'username', 'email').first()
+        if not user:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "User not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        posts = AppPost.objects.filter(author_id=pk).only(
+            'id', 'title', 'body', 'created_at'
+        ).prefetch_related(
+            Prefetch(
+                'appcomment_set',
+                queryset=AppComment.objects.only('id', 'text', 'created_at', 'post_id'),
+            )
+        )
+
+        response_posts = []
+        for post in posts:
+            response_posts.append({
+                "id": post.id,
+                "title": post.title,
+                "body": post.body,
+                "created_at": post.created_at,
+                "comments": AppCommentSerializer(post.appcomment_set.all(), many=True).data,
+            })
+
+        return Response({
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+            },
+            "posts": response_posts,
+        })
