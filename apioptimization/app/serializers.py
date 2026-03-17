@@ -16,9 +16,7 @@ class AppPostSerializer(serializers.ModelSerializer):
     
 
 class AppCommentSerializer(serializers.ModelSerializer):
-    post = AppPostSerializer()
-    author = AppUserSerializer()
+    
     class Meta:
         model = AppComment
-        fields = ['id', 'text', 'created_at', 'post', 'author']
-    
+        fields = ['id', 'text', 'created_at']
